@@ -878,20 +878,20 @@ class AtmosphericClockWeatherCard extends HTMLElement {
 }
 
 // ─── Register Card ──────────────────────────────────────────────────────
-customElements.define('atmospheric-clock-weather-card', AtmosphericClockWeatherCard);
+customElements.define('pretty-home-card', AtmosphericClockWeatherCard);
 
 // Register in card picker
 window.customCards = window.customCards || [];
 window.customCards.push({
-  type: 'atmospheric-clock-weather-card',
-  name: 'Atmospheric Clock Weather Card',
+  type: 'pretty-home-card',
+  name: 'Pretty Home Card',
   description: 'A weather card with animated sky, clock, and iOS-style forecast bars.',
   preview: true,
   documentationURL: 'https://github.com/themaluxis/pretty-home-card',
 });
 
 console.info(
-  `%c ATMOSPHERIC-CLOCK-WEATHER-CARD %c v${CARD_VERSION} `,
+  `%c PRETTY-HOME-CARD %c v${CARD_VERSION} `,
   'color: #fff; background: #1a8fe3; font-weight: bold; padding: 2px 6px; border-radius: 4px 0 0 4px;',
   'color: #1a8fe3; background: #e8f4fd; font-weight: bold; padding: 2px 6px; border-radius: 0 4px 4px 0;'
 );
