@@ -7,6 +7,9 @@ A Home Assistant Lovelace custom card that combines the best of two worlds:
 
 > Single JS file, no build step, no dependencies. Works with any weather integration.
 
+![alt text]([http://url/to/img.png](http://github.com/themaluxis/pretty-home-card/blob/main/image.png?raw=true))
+
+
 ---
 
 ## Features
