@@ -1,8 +1,8 @@
 /**
- * Atmospheric Clock Weather Card
+ * Pretty Home Card
  * A Home Assistant Lovelace custom card combining:
  *  - clock-weather-card layout (time, date, iOS-style forecast bars)
- *  - atmospheric-weather-card animations (canvas particles, dynamic sky)
+ *  - canvas particle weather animations (rain, snow, clouds, fog, birds, stars, lightning)
  *
  * Version: 1.0.0
  * License: MIT
@@ -85,8 +85,11 @@ class ParticleEngine {
     this.birds = [];
     this.fogBanks = [];
     this.condition = 'sunny';
+    this._lastCondition = null;
+    this._lastIsNight = null;
     this.isNight = false;
     this.windSpeed = 0;
+    this._targetWindSpeed = 0;
     this.animFrame = null;
     this.lastTime = 0;
   }
@@ -94,6 +97,8 @@ class ParticleEngine {
   resize() {
     const rect = this.canvas.parentElement.getBoundingClientRect();
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const oldW = this.w || 0;
+    const oldH = this.h || 0;
     this.canvas.width = rect.width * dpr;
     this.canvas.height = rect.height * dpr;
     this.canvas.style.width = rect.width + 'px';
@@ -101,13 +106,33 @@ class ParticleEngine {
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.w = rect.width;
     this.h = rect.height;
+
+    // Rescale existing particle positions instead of reinitializing
+    if (oldW > 0 && oldH > 0 && (oldW !== this.w || oldH !== this.h)) {
+      const sx = this.w / oldW;
+      const sy = this.h / oldH;
+      this.stars.forEach(s => { s.x *= sx; s.y *= sy; });
+      this.clouds.forEach(c => { c.x *= sx; c.y *= sy; c.w *= sx; c.h *= sy; });
+      this.particles.forEach(p => { p.x *= sx; p.y *= sy; });
+      this.fogBanks.forEach(f => { f.x *= sx; f.y *= sy; f.w *= sx; f.h *= sy; });
+      this.birds.forEach(b => { b.x *= sx; b.y *= sy; });
+    }
   }
 
   setCondition(condition, isNight, windSpeed) {
+    this._targetWindSpeed = windSpeed || 0;
+    const conditionChanged = condition !== this._lastCondition;
+    const nightChanged = isNight !== this._lastIsNight;
     this.condition = condition;
     this.isNight = isNight;
-    this.windSpeed = windSpeed || 0;
-    this._initParticles();
+
+    // Only reinitialize particles when condition or day/night actually changes
+    if (conditionChanged || nightChanged) {
+      this._lastCondition = condition;
+      this._lastIsNight = isNight;
+      this.windSpeed = this._targetWindSpeed;
+      this._initParticles();
+    }
   }
 
   _initParticles() {
@@ -197,6 +222,7 @@ class ParticleEngine {
 
   start() {
     if (this.animFrame) return;
+    this.lastTime = 0;
     const loop = (ts) => {
       this._draw(ts);
       this.animFrame = requestAnimationFrame(loop);
@@ -214,6 +240,17 @@ class ParticleEngine {
   _draw(ts) {
     const ctx = this.ctx, w = this.w, h = this.h;
     if (!w || !h) return;
+
+    // Delta-time calculation normalized to 60fps (16.67ms per frame)
+    if (!this.lastTime) this.lastTime = ts;
+    const rawDt = ts - this.lastTime;
+    this.lastTime = ts;
+    // Cap dt to prevent huge jumps after tab switch or long pause (max ~3 frames)
+    const dt = Math.min(rawDt, 50) / 16.667;
+
+    // Smoothly interpolate wind speed toward target
+    this.windSpeed += (this._targetWindSpeed - this.windSpeed) * 0.02 * dt;
+
     ctx.clearRect(0, 0, w, h);
 
     // Stars (visible when night or stormy)
@@ -221,7 +258,7 @@ class ParticleEngine {
       ['stormy','pouring'].includes(this.condition) ? 0.15 : 0.0;
     if (starAlphaBase > 0) {
       this.stars.forEach(s => {
-        s.twinkle += s.speed;
+        s.twinkle += s.speed * dt;
         const alpha = (Math.sin(s.twinkle) * 0.5 + 0.5) * starAlphaBase;
         ctx.fillStyle = `rgba(255,255,255,${alpha})`;
         ctx.beginPath();
@@ -232,7 +269,7 @@ class ParticleEngine {
 
     // Clouds
     this.clouds.forEach(c => {
-      c.x += c.speed;
+      c.x += c.speed * dt;
       if (c.x > w + c.w) { c.x = -c.w * 1.5; c.y = Math.random() * h * 0.3 + 5; }
       const cloudColor = this.isNight ? `rgba(60,70,90,${c.opacity})` : `rgba(255,255,255,${c.opacity})`;
       ctx.fillStyle = cloudColor;
@@ -244,7 +281,7 @@ class ParticleEngine {
 
     // Fog banks
     this.fogBanks.forEach(f => {
-      f.x += f.speed;
+      f.x += f.speed * dt;
       if (f.x > w + f.w) { f.x = -f.w * 1.5; }
       const fogColor = this.isNight ? `rgba(40,45,55,${f.opacity})` : `rgba(220,225,230,${f.opacity})`;
       ctx.fillStyle = fogColor;
@@ -256,8 +293,8 @@ class ParticleEngine {
     // Rain drops
     this.particles.forEach(p => {
       if (p.type === 'rain') {
-        p.y += p.speed;
-        p.x += p.drift;
+        p.y += p.speed * dt;
+        p.x += p.drift * dt;
         if (p.y > h) { p.y = -p.len; p.x = Math.random() * w * 1.2; }
         ctx.strokeStyle = `rgba(180,210,240,${p.opacity})`;
         ctx.lineWidth = 1;
@@ -266,9 +303,9 @@ class ParticleEngine {
         ctx.lineTo(p.x + p.drift * 2, p.y + p.len);
         ctx.stroke();
       } else if (p.type === 'snow') {
-        p.y += p.speed;
-        p.wobble += p.wobbleSpeed;
-        p.x += Math.sin(p.wobble) * 0.5;
+        p.y += p.speed * dt;
+        p.wobble += p.wobbleSpeed * dt;
+        p.x += Math.sin(p.wobble) * 0.5 * dt;
         if (p.y > h) { p.y = -5; p.x = Math.random() * w; }
         ctx.fillStyle = `rgba(255,255,255,${p.opacity})`;
         ctx.beginPath();
@@ -279,8 +316,8 @@ class ParticleEngine {
 
     // Birds
     this.birds.forEach(b => {
-      b.x += b.speed;
-      b.wing += b.wingSpeed;
+      b.x += b.speed * dt;
+      b.wing += b.wingSpeed * dt;
       if (b.x > w + 30) { b.x = -30; b.y = Math.random() * h * 0.25 + 15; }
       const wingY = Math.sin(b.wing) * 3.5;
       ctx.strokeStyle = this.isNight ? 'rgba(180,180,200,0.25)' : 'rgba(40,40,50,0.3)';
@@ -292,8 +329,8 @@ class ParticleEngine {
       ctx.stroke();
     });
 
-    // Lightning flash (random for stormy)
-    if (this.condition === 'stormy' && Math.random() < 0.003) {
+    // Lightning flash (random for stormy, dt-normalized probability)
+    if (this.condition === 'stormy' && Math.random() < 0.003 * dt) {
       ctx.fillStyle = 'rgba(255,255,255,0.15)';
       ctx.fillRect(0, 0, w, h);
     }
@@ -301,7 +338,7 @@ class ParticleEngine {
 }
 
 // ─── Main Card Element ──────────────────────────────────────────────────
-class AtmosphericClockWeatherCard extends HTMLElement {
+class PrettyHomeCard extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
@@ -418,7 +455,7 @@ class AtmosphericClockWeatherCard extends HTMLElement {
       );
     } catch (e) {
       // Fallback: try reading forecast from attributes (older HA versions)
-      console.warn('Atmospheric Clock Weather Card: forecast subscription failed, using attribute fallback', e);
+      console.warn('Pretty Home Card: forecast subscription failed, using attribute fallback', e);
       const entity = this._hass.states[this._config.entity];
       if (entity && entity.attributes.forecast) {
         this._forecast = entity.attributes.forecast;
@@ -467,15 +504,18 @@ class AtmosphericClockWeatherCard extends HTMLElement {
       const canvas = shadow.getElementById('particleCanvas');
       if (canvas) {
         this._particleEngine = new ParticleEngine(canvas);
-        // Resize observer for responsive canvas
+        // Resize observer — only rescales canvas, does not reinit particles
         this._resizeObserver = new ResizeObserver(() => {
           this._particleEngine.resize();
-          const entity = this._hass?.states[this._config.entity];
-          if (entity) {
-            const cond = CONDITION_MAP[entity.state] || 'cloudy';
-            const isNight = this._isNight();
-            const wind = entity.attributes.wind_speed || 0;
-            this._particleEngine.setCondition(cond, isNight, wind);
+          // Initialize particles if not yet done (first resize after creation)
+          if (this._particleEngine._lastCondition === null) {
+            const entity = this._hass?.states[this._config.entity];
+            if (entity) {
+              const cond = CONDITION_MAP[entity.state] || 'cloudy';
+              const isNight = this._isNight();
+              const wind = entity.attributes.wind_speed || 0;
+              this._particleEngine.setCondition(cond, isNight, wind);
+            }
           }
         });
         this._resizeObserver.observe(shadow.querySelector('.card-container'));
@@ -493,7 +533,6 @@ class AtmosphericClockWeatherCard extends HTMLElement {
     const condition = CONDITION_MAP[entity.state] || 'cloudy';
     const isNight = this._isNight();
     const temp = entity.attributes.temperature;
-    const humidity = entity.attributes.humidity;
     const windSpeed = entity.attributes.wind_speed;
     const description = this._localizeCondition(entity.state);
 
@@ -511,7 +550,7 @@ class AtmosphericClockWeatherCard extends HTMLElement {
       skyBg.style.background = isNight ? gradients.night : gradients.day;
     }
 
-    // Update particles
+    // Update particles (setCondition handles change detection internally)
     if (this._particleEngine) {
       this._particleEngine.setCondition(condition, isNight, windSpeed || 0);
     }
@@ -572,7 +611,6 @@ class AtmosphericClockWeatherCard extends HTMLElement {
     if (!row) return;
 
     const attrs = entity.attributes;
-    const unit = attrs.temperature_unit || '°';
     const windUnit = attrs.wind_speed_unit || 'km/h';
     const pressureUnit = attrs.pressure_unit || 'hPa';
 
@@ -878,7 +916,7 @@ class AtmosphericClockWeatherCard extends HTMLElement {
 }
 
 // ─── Register Card ──────────────────────────────────────────────────────
-customElements.define('pretty-home-card', AtmosphericClockWeatherCard);
+customElements.define('pretty-home-card', PrettyHomeCard);
 
 // Register in card picker
 window.customCards = window.customCards || [];
