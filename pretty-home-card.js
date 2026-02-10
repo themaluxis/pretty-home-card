@@ -348,6 +348,7 @@ class PrettyHomeCard extends HTMLElement {
     this._particleEngine = null;
     this._resizeObserver = null;
     this._rendered = false;
+    this._isForecastCollapsed = false;
   }
 
   // ── HA Interface ────────────────────────────────────────────────────
@@ -489,6 +490,9 @@ class PrettyHomeCard extends HTMLElement {
             ` : ''}
             ${this._config.show_forecast ? `
             <div class="forecast-container" id="forecastContainer">
+              <div class="forecast-header" id="forecastHeader">
+                <ha-icon icon="mdi:chevron-up" id="forecastIcon"></ha-icon>
+              </div>
               <div class="forecast-rows" id="forecastRows"></div>
             </div>
             ` : ''}
@@ -496,6 +500,15 @@ class PrettyHomeCard extends HTMLElement {
         </div>
       </ha-card>
     `;
+
+    // Setup forecast toggle
+    if (this._config.show_forecast) {
+      const header = shadow.getElementById('forecastHeader');
+      if (header) {
+        // Use bind to ensure 'this' refers to the component instance
+        header.addEventListener('click', this._toggleForecast.bind(this));
+      }
+    }
 
     // Init particle engine
     if (this._config.animated_background) {
@@ -625,6 +638,22 @@ class PrettyHomeCard extends HTMLElement {
         <span class="detail-value">${d.value}</span>
       </div>
     `).join('');
+  }
+
+  _toggleForecast() {
+    this._isForecastCollapsed = !this._isForecastCollapsed;
+    const container = this.shadowRoot.getElementById('forecastContainer');
+    const icon = this.shadowRoot.getElementById('forecastIcon');
+
+    if (container && icon) {
+      if (this._isForecastCollapsed) {
+        container.classList.add('collapsed');
+        icon.setAttribute('icon', 'mdi:chevron-down');
+      } else {
+        container.classList.remove('collapsed');
+        icon.setAttribute('icon', 'mdi:chevron-up');
+      }
+    }
   }
 
   _updateForecast() {
@@ -848,10 +877,27 @@ class PrettyHomeCard extends HTMLElement {
       .forecast-container {
         background: rgba(0,0,0,0.14);
         border-radius: 14px;
-        padding: 10px 14px;
+        padding: 4px 14px 10px;
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
         border: 1px solid rgba(255,255,255,0.05);
+        transition: all 0.3s ease;
+      }
+      .forecast-container.collapsed {
+        padding-bottom: 4px;
+      }
+      .forecast-container.collapsed .forecast-rows {
+        display: none;
+      }
+      .forecast-header {
+        text-align: center;
+        cursor: pointer;
+        padding-bottom: 4px;
+        opacity: 0.6;
+        transition: opacity 0.2s;
+      }
+      .forecast-header:hover {
+        opacity: 1;
       }
       .forecast-row {
         display: grid;
