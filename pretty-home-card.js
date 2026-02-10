@@ -8,7 +8,7 @@
  * License: MIT
  */
 
-const CARD_VERSION = '1.0.1';
+const CARD_VERSION = '1.0.2';
 
 // ─── HA Weather State → Internal Condition Mapping ──────────────────────
 const CONDITION_MAP = {
@@ -65,13 +65,6 @@ const CONDITION_ICONS = {
   'snowy':        'mdi:weather-snowy',
   'stormy':       'mdi:weather-lightning',
   'windy':        'mdi:weather-windy',
-};
-
-// Emoji fallback for condition display in forecast rows
-const CONDITION_EMOJI = {
-  'sunny':        '☀️', 'clear-night': '🌙', 'partly-cloudy': '⛅',
-  'cloudy':       '☁️', 'foggy': '🌫️', 'rainy': '🌧️',
-  'pouring':      '🌧️', 'snowy': '❄️', 'stormy': '⛈️', 'windy': '💨',
 };
 
 // ─── Particle System ────────────────────────────────────────────────────
@@ -620,13 +613,14 @@ class PrettyHomeCard extends HTMLElement {
     const pressureUnit = attrs.pressure_unit || 'hPa';
 
     const details = [];
-    if (attrs.humidity !== undefined)    details.push({ label: 'Humidity', value: `${attrs.humidity}%` });
-    if (attrs.wind_speed !== undefined)  details.push({ label: 'Wind', value: `${Math.round(attrs.wind_speed)} ${windUnit}` });
-    if (attrs.pressure !== undefined)    details.push({ label: 'Pressure', value: `${Math.round(attrs.pressure)} ${pressureUnit}` });
-    if (attrs.visibility !== undefined)  details.push({ label: 'Visibility', value: `${attrs.visibility} km` });
+    if (attrs.humidity !== undefined)    details.push({ icon: 'mdi:water-percent', label: 'Humidity', value: `${attrs.humidity}%` });
+    if (attrs.wind_speed !== undefined)  details.push({ icon: 'mdi:weather-windy', label: 'Wind', value: `${Math.round(attrs.wind_speed)} ${windUnit}` });
+    if (attrs.pressure !== undefined)    details.push({ icon: 'mdi:gauge', label: 'Pressure', value: `${Math.round(attrs.pressure)} ${pressureUnit}` });
+    if (attrs.visibility !== undefined)  details.push({ icon: 'mdi:eye', label: 'Visibility', value: `${attrs.visibility} km` });
 
     row.innerHTML = details.slice(0, 4).map(d => `
       <div class="detail-item">
+        <ha-icon icon="${d.icon}" class="detail-icon"></ha-icon>
         <span class="detail-label">${d.label}</span>
         <span class="detail-value">${d.value}</span>
       </div>
@@ -668,7 +662,7 @@ class PrettyHomeCard extends HTMLElement {
       const low = Math.round(f.templow ?? f.temperature);
       const high = Math.round(f.temperature ?? f.templow);
       const condition = CONDITION_MAP[f.condition] || 'cloudy';
-      const emoji = CONDITION_EMOJI[condition] || '🌡️';
+      const icon = CONDITION_ICONS[condition] || 'mdi:weather-cloudy';
 
       // Temperature bar calculation
       const range = globalMax - globalMin || 1;
@@ -697,7 +691,7 @@ class PrettyHomeCard extends HTMLElement {
       return `
         <div class="forecast-row${i === 0 ? ' today' : ''}">
           <span class="forecast-day">${label}</span>
-          <span class="forecast-icon">${emoji}</span>
+          <ha-icon icon="${icon}" class="forecast-icon"></ha-icon>
           <span class="forecast-low">${low}°</span>
           <div class="temp-bar-track">
             <div class="temp-bar-fill" style="
@@ -825,6 +819,14 @@ class PrettyHomeCard extends HTMLElement {
         flex: 1;
         text-align: center;
       }
+      .detail-icon {
+        color: rgba(255,255,255,0.85);
+        --mdc-icon-size: 22px;
+        margin-bottom: 4px;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+      }
       .detail-label {
         display: block;
         font-size: 10px;
@@ -873,9 +875,12 @@ class PrettyHomeCard extends HTMLElement {
         font-weight: 600;
       }
       .forecast-icon {
-        font-size: 14px;
         text-align: center;
-        line-height: 1;
+        color: rgba(255,255,255,0.9);
+        --mdc-icon-size: 20px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
       }
       .forecast-low {
         font-size: 12.5px;
