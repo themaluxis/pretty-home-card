@@ -641,10 +641,10 @@ class PrettyHomeCard extends HTMLElement {
     // Compute global min/max for temp bar scaling
     let globalMin = Infinity, globalMax = -Infinity;
     items.forEach(f => {
-      const low = f.templow ?? f.temperature;
-      const high = f.temperature ?? f.templow;
-      if (low < globalMin) globalMin = low;
-      if (high > globalMax) globalMax = high;
+      const low = parseFloat(f.templow ?? f.temperature);
+      const high = parseFloat(f.temperature ?? f.templow);
+      if (!isNaN(low) && low < globalMin) globalMin = low;
+      if (!isNaN(high) && high > globalMax) globalMax = high;
     });
 
     const currentTemp = this._hass?.states[this._config.entity]?.attributes?.temperature;
@@ -659,15 +659,17 @@ class PrettyHomeCard extends HTMLElement {
         label = dt.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false });
       }
 
-      const low = Math.round(f.templow ?? f.temperature);
-      const high = Math.round(f.temperature ?? f.templow);
+      const rawLow = parseFloat(f.templow ?? f.temperature);
+      const rawHigh = parseFloat(f.temperature ?? f.templow);
+      const low = Math.round(rawLow);
+      const high = Math.round(rawHigh);
       const condition = CONDITION_MAP[f.condition] || 'cloudy';
       const icon = CONDITION_ICONS[condition] || 'mdi:weather-cloudy';
 
       // Temperature bar calculation
       const range = globalMax - globalMin || 1;
-      const leftPct = ((low - globalMin) / range) * 100;
-      const widthPct = ((high - low) / range) * 100;
+      const leftPct = ((rawLow - globalMin) / range) * 100;
+      const widthPct = ((rawHigh - rawLow) / range) * 100;
 
       // Color gradient endpoints
       const coldR = 70, coldG = 140, coldB = 220;
@@ -853,9 +855,9 @@ class PrettyHomeCard extends HTMLElement {
       }
       .forecast-row {
         display: grid;
-        grid-template-columns: 46px 22px 30px 1fr 30px;
+        grid-template-columns: 46px 22px 34px 1fr 34px;
         align-items: center;
-        gap: 6px;
+        gap: 8px;
         padding: 7px 0;
         border-bottom: 1px solid rgba(255,255,255,0.05);
       }
