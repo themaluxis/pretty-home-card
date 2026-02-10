@@ -2,5 +2,5 @@
   "name": "Atmospheric Modified Weather Card",
   "render_readme": true,
   "content_in_root": true,
-  "filename": "atmospheric-clock-weather-card.js"
+  "filename": "pretty-home-card.js"
 }
