@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock Collapsible</title>
+    <style>
+        body { background-color: #333; color: white; margin: 0; padding: 20px; font-family: sans-serif; }
+        pretty-home-card { display: block; width: 400px; height: 350px; }
+
+        ha-icon {
+            display: inline-block;
+            width: var(--mdc-icon-size, 24px);
+            height: var(--mdc-icon-size, 24px);
+            background-color: rgba(255,255,255,0.2);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        ha-icon::after {
+            content: attr(icon);
+            font-size: 10px;
+            color: #fff;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding: 2px;
+        }
+    </style>
+</head>
+<body>
+    <pretty-home-card id="card"></pretty-home-card>
+
+    <script>
+        class HaIcon extends HTMLElement {
+            constructor() { super(); }
+            static get observedAttributes() { return ['icon']; }
+            attributeChangedCallback(name, oldValue, newValue) {
+                this.setAttribute('title', newValue);
+            }
+        }
+        customElements.define('ha-icon', HaIcon);
+    </script>
+    <script src="pretty-home-card.js"></script>
+    <script>
+        const card = document.getElementById('card');
+
+        const mockHass = {
+            states: {
+                'weather.home': {
+                    state: 'partlycloudy',
+                    attributes: {
+                        temperature: 20,
+                        wind_speed: 10,
+                        humidity: 45,
+                        pressure: 1012,
+                        visibility: 10,
+                        wind_speed_unit: 'km/h',
+                        pressure_unit: 'hPa',
+                        forecast: []
+                    }
+                },
+                'sun.sun': {
+                    state: 'above_horizon'
+                }
+            },
+            connection: {
+                subscribeMessage: async (callback, params) => {
+                    callback({
+                        forecast: [
+                            { datetime: new Date().toISOString(), temperature: 22, templow: 15, condition: 'partlycloudy' },
+                            { datetime: new Date(Date.now() + 86400000).toISOString(), temperature: 23, templow: 16, condition: 'sunny' },
+                            { datetime: new Date(Date.now() + 2*86400000).toISOString(), temperature: 18, templow: 12, condition: 'rainy' },
+                            { datetime: new Date(Date.now() + 3*86400000).toISOString(), temperature: 20, templow: 14, condition: 'cloudy' },
+                            { datetime: new Date(Date.now() + 4*86400000).toISOString(), temperature: 19, templow: 13, condition: 'fog' }
+                        ]
+                    });
+                    return () => {};
+                }
+            },
+            localize: (key) => key,
+            config: { unit_system: { temperature: '°C' } }
+        };
+
+        card.setConfig({
+            entity: 'weather.home',
+            animated_background: true
+        });
+
+        card.hass = mockHass;
+
+    </script>
+</body>
+</html>
