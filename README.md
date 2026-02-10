@@ -1,4 +1,4 @@
-# Atmospheric Clock Weather Card
+# Pretty Home Card
 
 A Home Assistant Lovelace custom card that combines the best of two worlds:
 
