@@ -8,7 +8,7 @@
  * License: MIT
  */
 
-const CARD_VERSION = '1.0.0';
+const CARD_VERSION = '1.0.1';
 
 // ─── HA Weather State → Internal Condition Mapping ──────────────────────
 const CONDITION_MAP = {
@@ -116,6 +116,11 @@ class ParticleEngine {
       this.particles.forEach(p => { p.x *= sx; p.y *= sy; });
       this.fogBanks.forEach(f => { f.x *= sx; f.y *= sy; f.w *= sx; f.h *= sy; });
       this.birds.forEach(b => { b.x *= sx; b.y *= sy; });
+    }
+
+    // Fix: If particles were never initialized (e.g. created before layout), init now
+    if (this.w > 0 && this.h > 0 && this.stars.length === 0) {
+      this._initParticles();
     }
   }
 
