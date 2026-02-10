@@ -348,7 +348,7 @@ class PrettyHomeCard extends HTMLElement {
     this._particleEngine = null;
     this._resizeObserver = null;
     this._rendered = false;
-    this._isForecastCollapsed = false;
+    this._isForecastCollapsed = true;
   }
 
   // ── HA Interface ────────────────────────────────────────────────────
@@ -489,9 +489,9 @@ class PrettyHomeCard extends HTMLElement {
             <div class="details-row" id="detailsRow"></div>
             ` : ''}
             ${this._config.show_forecast ? `
-            <div class="forecast-container" id="forecastContainer">
+            <div class="forecast-container collapsed" id="forecastContainer">
               <div class="forecast-header" id="forecastHeader">
-                <ha-icon icon="mdi:chevron-up" id="forecastIcon"></ha-icon>
+                <ha-icon icon="mdi:chevron-down" id="forecastIcon"></ha-icon>
               </div>
               <div class="forecast-rows" id="forecastRows"></div>
             </div>
