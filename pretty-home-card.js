@@ -67,6 +67,66 @@ const CONDITION_ICONS = {
   'windy':        'mdi:weather-windy',
 };
 
+// ─── Translations ──────────────────────────────────────────────────────
+const TRANSLATIONS = {
+  'en': {
+    'Humidity': 'Humidity',
+    'Wind': 'Wind',
+    'Pressure': 'Pressure',
+    'Visibility': 'Visibility',
+    'Feels': 'Feels like',
+    'Today': 'Today',
+  },
+  'fr': {
+    'Humidity': 'Humidité',
+    'Wind': 'Vent',
+    'Pressure': 'Pression',
+    'Visibility': 'Visibilité',
+    'Feels': 'Ressenti',
+    'Today': 'Auj.',
+  },
+  'de': {
+    'Humidity': 'Feuchtigkeit',
+    'Wind': 'Wind',
+    'Pressure': 'Druck',
+    'Visibility': 'Sicht',
+    'Feels': 'Gefühlt',
+    'Today': 'Heute',
+  },
+  'es': {
+    'Humidity': 'Humedad',
+    'Wind': 'Viento',
+    'Pressure': 'Presión',
+    'Visibility': 'Visibilidad',
+    'Feels': 'Sensación',
+    'Today': 'Hoy',
+  },
+  'it': {
+    'Humidity': 'Umidità',
+    'Wind': 'Vento',
+    'Pressure': 'Pressione',
+    'Visibility': 'Visibilità',
+    'Feels': 'Percepito',
+    'Today': 'Oggi',
+  },
+  'nl': {
+    'Humidity': 'Vochtigheid',
+    'Wind': 'Wind',
+    'Pressure': 'Druk',
+    'Visibility': 'Zicht',
+    'Feels': 'Voelt als',
+    'Today': 'Vandaag',
+  },
+  'ru': {
+    'Humidity': 'Влажность',
+    'Wind': 'Ветер',
+    'Pressure': 'Давление',
+    'Visibility': 'Видимость',
+    'Feels': 'Ощущается',
+    'Today': 'Сегодня',
+  },
+};
+
 // ─── Particle System ────────────────────────────────────────────────────
 class ParticleEngine {
   constructor(canvas) {
@@ -600,7 +660,7 @@ class PrettyHomeCard extends HTMLElement {
     if (descEl) {
       let desc = description;
       if (apparentTemp !== null) {
-        desc = `Feels ${Math.round(apparentTemp)}° · ${description}`;
+        desc = `${this._t('Feels')} ${Math.round(apparentTemp)}° · ${description}`;
       }
       descEl.textContent = desc;
     }
@@ -648,10 +708,10 @@ class PrettyHomeCard extends HTMLElement {
     const pressureUnit = attrs.pressure_unit || 'hPa';
 
     const details = [];
-    if (attrs.humidity !== undefined)    details.push({ icon: 'mdi:water-percent', label: 'Humidity', value: `${attrs.humidity}%` });
-    if (attrs.wind_speed !== undefined)  details.push({ icon: 'mdi:weather-windy', label: 'Wind', value: `${Math.round(attrs.wind_speed)} ${windUnit}` });
-    if (attrs.pressure !== undefined)    details.push({ icon: 'mdi:gauge', label: 'Pressure', value: `${Math.round(attrs.pressure)} ${pressureUnit}` });
-    if (attrs.visibility !== undefined)  details.push({ icon: 'mdi:eye', label: 'Visibility', value: `${attrs.visibility} km` });
+    if (attrs.humidity !== undefined)    details.push({ icon: 'mdi:water-percent', label: this._t('Humidity'), value: `${attrs.humidity}%` });
+    if (attrs.wind_speed !== undefined)  details.push({ icon: 'mdi:weather-windy', label: this._t('Wind'), value: `${Math.round(attrs.wind_speed)} ${windUnit}` });
+    if (attrs.pressure !== undefined)    details.push({ icon: 'mdi:gauge', label: this._t('Pressure'), value: `${Math.round(attrs.pressure)} ${pressureUnit}` });
+    if (attrs.visibility !== undefined)  details.push({ icon: 'mdi:eye', label: this._t('Visibility'), value: `${attrs.visibility} km` });
 
     row.innerHTML = details.slice(0, 4).map(d => `
       <div class="detail-item">
@@ -705,7 +765,7 @@ class PrettyHomeCard extends HTMLElement {
       let label;
       if (isDaily) {
         const isToday = new Date().toDateString() === dt.toDateString();
-        label = isToday ? (locale.startsWith('fr') ? "Auj." : "Today") : dt.toLocaleDateString(locale, { weekday: 'short' });
+        label = isToday ? this._t('Today') : dt.toLocaleDateString(locale, { weekday: 'short' });
       } else {
         label = dt.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false });
       }
@@ -768,6 +828,12 @@ class PrettyHomeCard extends HTMLElement {
     // Fallback: check current hour
     const h = new Date().getHours();
     return h < 6 || h > 20;
+  }
+
+  _t(key) {
+    const locale = this._config.locale || this._hass?.locale?.language || navigator.language || 'en';
+    const lang = locale.toLowerCase().split(/[_-]/)[0];
+    return (TRANSLATIONS[lang] && TRANSLATIONS[lang][key]) || (TRANSLATIONS['en'] && TRANSLATIONS['en'][key]) || key;
   }
 
   _localizeCondition(state) {
