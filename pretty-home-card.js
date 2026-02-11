@@ -85,6 +85,7 @@ class ParticleEngine {
     this._targetWindSpeed = 0;
     this.animFrame = null;
     this.lastTime = 0;
+    this._initialized = false;
   }
 
   resize() {
@@ -100,19 +101,19 @@ class ParticleEngine {
     this.w = rect.width;
     this.h = rect.height;
 
-    // Rescale existing particle positions instead of reinitializing
+    // Rescale existing particle positions (only X) to prevent squashing/reloading effect
     if (oldW > 0 && oldH > 0 && (oldW !== this.w || oldH !== this.h)) {
       const sx = this.w / oldW;
-      const sy = this.h / oldH;
-      this.stars.forEach(s => { s.x *= sx; s.y *= sy; });
-      this.clouds.forEach(c => { c.x *= sx; c.y *= sy; c.w *= sx; c.h *= sy; });
-      this.particles.forEach(p => { p.x *= sx; p.y *= sy; });
-      this.fogBanks.forEach(f => { f.x *= sx; f.y *= sy; f.w *= sx; f.h *= sy; });
-      this.birds.forEach(b => { b.x *= sx; b.y *= sy; });
+      // Note: We intentionally do NOT scale Y (sy) or dimensions (w/h/r) to keep the scene stable during collapse
+      this.stars.forEach(s => { s.x *= sx; });
+      this.clouds.forEach(c => { c.x *= sx; });
+      this.particles.forEach(p => { p.x *= sx; });
+      this.fogBanks.forEach(f => { f.x *= sx; });
+      this.birds.forEach(b => { b.x *= sx; });
     }
 
     // Fix: If particles were never initialized (e.g. created before layout), init now
-    if (this.w > 0 && this.h > 0 && this.stars.length === 0) {
+    if (this.w > 0 && this.h > 0 && !this._initialized) {
       this._initParticles();
     }
   }
@@ -154,14 +155,24 @@ class ParticleEngine {
       'stormy': 7, 'windy': 4,
     };
     const count = cloudDensity[this.condition] || 3;
-    this.clouds = Array.from({ length: count }, () => ({
-      x: Math.random() * w * 1.5 - w * 0.25,
-      y: Math.random() * h * 0.35 + 5,
-      w: Math.random() * 110 + 70,
-      h: Math.random() * 25 + 15,
-      speed: (Math.random() * 0.3 + 0.1) * (1 + windFactor),
-      opacity: Math.random() * 0.2 + (['rainy','pouring','stormy','cloudy','foggy'].includes(this.condition) ? 0.3 : 0.12),
-    }));
+    this.clouds = Array.from({ length: count }, () => {
+      const wCloud = Math.random() * 110 + 70;
+      const hCloud = Math.random() * 25 + 15;
+      const puffs = Array.from({ length: Math.floor(Math.random() * 3) + 5 }, () => ({
+        dx: (Math.random() - 0.5) * wCloud,
+        dy: (Math.random() - 0.5) * hCloud * 0.6,
+        r: Math.random() * 15 + 10,
+      }));
+      return {
+        x: Math.random() * w * 1.5 - w * 0.25,
+        y: Math.random() * h * 0.35 + 5,
+        w: wCloud,
+        h: hCloud,
+        puffs,
+        speed: (Math.random() * 0.3 + 0.1) * (1 + windFactor),
+        opacity: Math.random() * 0.2 + (['rainy','pouring','stormy','cloudy','foggy'].includes(this.condition) ? 0.3 : 0.12),
+      };
+    });
 
     // Rain
     if (['rainy', 'pouring', 'stormy'].includes(this.condition)) {
@@ -216,6 +227,8 @@ class ParticleEngine {
     } else {
       this.birds = [];
     }
+
+    this._initialized = true;
   }
 
   start() {
@@ -268,13 +281,22 @@ class ParticleEngine {
     // Clouds
     this.clouds.forEach(c => {
       c.x += c.speed * dt;
-      if (c.x > w + c.w) { c.x = -c.w * 1.5; c.y = Math.random() * h * 0.3 + 5; }
+      // Wrap around
+      if (c.x > w + c.w) {
+        c.x = -c.w * 1.5;
+        c.y = Math.random() * h * 0.35 + 5;
+      }
+
       const cloudColor = this.isNight ? `rgba(60,70,90,${c.opacity})` : `rgba(255,255,255,${c.opacity})`;
       ctx.fillStyle = cloudColor;
-      // Three-ellipse cloud
-      ctx.beginPath(); ctx.ellipse(c.x, c.y, c.w * 0.5, c.h, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(c.x - c.w * 0.25, c.y + c.h * 0.2, c.w * 0.3, c.h * 0.7, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(c.x + c.w * 0.2, c.y + c.h * 0.15, c.w * 0.35, c.h * 0.8, 0, 0, Math.PI * 2); ctx.fill();
+
+      // Draw fluffy cloud puffs
+      ctx.beginPath();
+      c.puffs.forEach(p => {
+        ctx.moveTo(c.x + p.dx + p.r, c.y + p.dy);
+        ctx.arc(c.x + p.dx, c.y + p.dy, p.r, 0, Math.PI * 2);
+      });
+      ctx.fill();
     });
 
     // Fog banks
